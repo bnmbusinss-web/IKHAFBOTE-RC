@@ -1,10 +1,22 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware  # المكتبة الجديدة لحل مشكلة CORS
 from pydantic import BaseModel
 from datetime import datetime
 import uvicorn
 
 app = FastAPI()
+
+# ========================================================
+# 🛡️ إعدادات السماح بالاتصال (CORS) لحل مشكلة المتصفح
+# ========================================================
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # يسمح لأي موقع (مثل موقع BLS) بالاتصال بالسيرفر
+    allow_credentials=True,
+    allow_methods=["*"],  # يسمح بجميع أنواع الطلبات (GET, POST, الخ)
+    allow_headers=["*"],
+)
 
 computers_db = {}
 global_active = True 
@@ -78,7 +90,7 @@ def start_pc(hwid: str, password: str = ""):
     return {"error": "غير موجود"}
 
 # ========================================================
-# 🎨 واجهة لوحة التحكم المرئية (HTML / CSS / JS)
+# 🎨 واجهة لوحة التحكم المرئية
 # ========================================================
 @app.get("/", response_class=HTMLResponse)
 def dashboard():
@@ -95,14 +107,12 @@ def dashboard():
             .header { text-align: center; margin-bottom: 30px; border-bottom: 1px solid #27272a; padding-bottom: 20px; }
             .header h1 { color: #22c55e; margin: 0; font-size: 28px; font-weight: 900; }
             
-            /* شاشة تسجيل الدخول */
             #login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; }
             input[type="password"] { background: #18181b; border: 1px solid #3f3f46; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 16px; margin-bottom: 15px; width: 250px; text-align: center; }
             .btn { border: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; transition: 0.2s; }
             .btn-blue { background: #38bdf8; color: #000; }
             .btn-blue:hover { background: #0284c7; }
             
-            /* لوحة التحكم */
             #dashboard-screen { display: none; }
             .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }
             .stat-card { background: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 20px; text-align: center; }
@@ -131,7 +141,6 @@ def dashboard():
                 <p style="color: #a1a1aa; margin-top: 5px;">الإدارة والتحكم في الأجهزة المتصلة</p>
             </div>
 
-            <!-- شاشة الدخول -->
             <div id="login-screen">
                 <h3 style="margin-bottom: 20px;">الرجاء إدخال كلمة المرور للوصول</h3>
                 <input type="password" id="pass-input" placeholder="••••••••" onkeypress="if(event.key === 'Enter') login()">
@@ -139,7 +148,6 @@ def dashboard():
                 <div id="login-error" class="error-msg">كلمة السر خاطئة!</div>
             </div>
 
-            <!-- شاشة لوحة التحكم -->
             <div id="dashboard-screen">
                 <div class="stats-grid">
                     <div class="stat-card">
@@ -171,7 +179,6 @@ def dashboard():
                             </tr>
                         </thead>
                         <tbody id="table-body">
-                            <!-- سيتم حقن البيانات هنا -->
                         </tbody>
                     </table>
                 </div>
@@ -195,7 +202,7 @@ def dashboard():
                         document.getElementById("login-screen").style.display = "none";
                         document.getElementById("dashboard-screen").style.display = "block";
                         loadData();
-                        setInterval(loadData, 5000); // تحديث تلقائي كل 5 ثواني
+                        setInterval(loadData, 5000); 
                     }
                 } catch (e) {
                     alert("تعذر الاتصال بالسيرفر");
