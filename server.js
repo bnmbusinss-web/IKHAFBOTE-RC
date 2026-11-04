@@ -1,22 +1,19 @@
 const express = require('express');
+const cors = require('cors'); // استدعاء مكتبة الـ CORS
 const app = express();
 
+app.use(cors()); // السماح لجميع الطلبات الخارجية بالمرور من أي موقع
 app.use(express.json());
 
-// ==========================================
-// 🔒 نظام التحكم وإيقاف السكربت (Kill Switch)
-// ==========================================
+// مسار فحص الترخيص
 app.post('/check-license', (req, res) => {
-    // 🔴 تحكم فوري من هنا:
-    const isScriptActive = true;         // اجعلها false لإيقاف السكربت فوراً
-    const isSubscriptionExpired = false; // اجعلها true إذا انتهى اشتراك العميل
+    const isScriptActive = true;         
+    const isSubscriptionExpired = false; 
 
-    // إذا انتهى الاشتراك
     if (isSubscriptionExpired) {
         return res.json({ status: "expired" });
     }
 
-    // إذا كان السكربت مفَعّلاً
     if (isScriptActive) {
         return res.json({ status: "active" });
     } else {
@@ -24,7 +21,6 @@ app.post('/check-license', (req, res) => {
     }
 });
 
-// مسار افتراضي للتأكد من أن السيرفر يعمل
 app.get('/', (req, res) => {
     res.send('BLS License Server is running.');
 });
