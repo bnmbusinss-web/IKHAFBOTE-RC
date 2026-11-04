@@ -7,28 +7,35 @@ app.use(express.json());
 // 🔒 نظام التحكم وإيقاف السكربت (Kill Switch)
 // ==========================================
 app.post('/check-license', (req, res) => {
-    // 🔴 للتحكم في السكربت: 
-    // اجعل هذه القيمة true ليعمل السكربت.
-    // اجعلها false إذا سُرق السكربت وأردت إيقافه عند الجميع فوراً.
-    const isScriptActive = true; 
+    // 🔴 يمكنك التحكم بحالة السكربت عن طريق تغيير هذه المتغيرات:
     
-    // إضافة حماية إضافية للتحقق من الدومين
+    const isScriptActive = true;     // اجعلها false لإيقاف السكربت برسالة "تم إيقاف السكربت من الإدارة"
+    const isSubscriptionExpired = false; // اجعلها true لإيقاف السكربت برسالة "انتهى الاشتراك"
+    
+    // حماية لتأكيد الدومين
     const allowedDomain = "morocco.blsinternational.com";
     const requestDomain = req.body.domain;
 
-    if (isScriptActive && requestDomain === allowedDomain) {
-        res.json({ status: "active" });
+    if (requestDomain !== allowedDomain) {
+        return res.json({ status: "blocked" });
+    }
+
+    if (isSubscriptionExpired) {
+        return res.json({ status: "expired" });
+    }
+
+    if (isScriptActive) {
+        return res.json({ status: "active" });
     } else {
-        res.json({ status: "blocked" });
+        return res.json({ status: "blocked" });
     }
 });
 
-// مسار افتراضي للتأكد من أن السيرفر يعمل
+// مسار افتراضي 
 app.get('/', (req, res) => {
-    res.send('Server is running and secure.');
+    res.send('BLS License Server is running.');
 });
 
-// تشغيل السيرفر على المنفذ الذي تحدده منصة Railway
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server is listening on port ${PORT}`);
