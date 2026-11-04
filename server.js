@@ -7,23 +7,16 @@ app.use(express.json());
 // 🔒 نظام التحكم وإيقاف السكربت (Kill Switch)
 // ==========================================
 app.post('/check-license', (req, res) => {
-    // 🔴 يمكنك التحكم بحالة السكربت عن طريق تغيير هذه المتغيرات:
-    
-    const isScriptActive = true;     // اجعلها false لإيقاف السكربت برسالة "تم إيقاف السكربت من الإدارة"
-    const isSubscriptionExpired = false; // اجعلها true لإيقاف السكربت برسالة "انتهى الاشتراك"
-    
-    // حماية لتأكيد الدومين
-    const allowedDomain = "morocco.blsinternational.com";
-    const requestDomain = req.body.domain;
+    // 🔴 تحكم فوري من هنا:
+    const isScriptActive = true;         // اجعلها false لإيقاف السكربت فوراً
+    const isSubscriptionExpired = false; // اجعلها true إذا انتهى اشتراك العميل
 
-    if (requestDomain !== allowedDomain) {
-        return res.json({ status: "blocked" });
-    }
-
+    // إذا انتهى الاشتراك
     if (isSubscriptionExpired) {
         return res.json({ status: "expired" });
     }
 
+    // إذا كان السكربت مفَعّلاً
     if (isScriptActive) {
         return res.json({ status: "active" });
     } else {
@@ -31,7 +24,7 @@ app.post('/check-license', (req, res) => {
     }
 });
 
-// مسار افتراضي 
+// مسار افتراضي للتأكد من أن السيرفر يعمل
 app.get('/', (req, res) => {
     res.send('BLS License Server is running.');
 });
