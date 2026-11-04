@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from datetime import datetime
 import uvicorn
@@ -8,6 +8,11 @@ app = FastAPI()
 computers_db = {}
 global_active = True 
 
+# ==========================================
+# 🔒 ضع كلمة السر الخاصة بك هنا (لا تخبرها لأحد)
+# ==========================================
+ADMIN_PASSWORD = "zakaria2026" 
+
 class BotInfo(BaseModel):
     hwid: str
     os_info: str
@@ -15,6 +20,7 @@ class BotInfo(BaseModel):
 
 @app.post("/ping")
 def ping(info: BotInfo):
+    # البوت يتصل هنا بدون كلمة سر (آمن)
     if not global_active:
         return {"status": "stop", "message": "تم إيقاف البوت من قبل الإدارة للإصلاح أو لانتهاء الصلاحية."}
     
@@ -33,8 +39,17 @@ def ping(info: BotInfo):
 
     return {"status": "success", "total_computers": len(computers_db)}
 
+# --- دالة التحقق من كلمة السر ---
+def check_password(password: str):
+    if password != ADMIN_PASSWORD:
+        # إذا كانت كلمة السر خاطئة، يظهر له خطأ ولن يرى شيئاً
+        raise HTTPException(status_code=403, detail="Access Denied! غير مصرح لك.")
+
+# ================= لوحة تحكم الإدارة المخفية =================
+
 @app.get("/admin/stats")
-def get_stats():
+def get_stats(password: str = ""):
+    check_password(password)
     return {
         "total_computers": len(computers_db),
         "global_status": "يعمل" if global_active else "متوقف للجميع",
@@ -42,19 +57,22 @@ def get_stats():
     }
 
 @app.get("/admin/stop_all")
-def stop_all():
+def stop_all(password: str = ""):
+    check_password(password)
     global global_active
     global_active = False
     return {"message": "تم إيقاف البوت عن جميع الحواسيب بنجاح."}
 
 @app.get("/admin/start_all")
-def start_all():
+def start_all(password: str = ""):
+    check_password(password)
     global global_active
     global_active = True
     return {"message": "تم السماح للبوت بالعمل مجدداً."}
 
 @app.get("/admin/stop_pc/{hwid}")
-def stop_pc(hwid: str):
+def stop_pc(hwid: str, password: str = ""):
+    check_password(password)
     if hwid in computers_db:
         computers_db[hwid]["is_active"] = False
         return {"message": f"تم إيقاف الحاسوب {hwid} بنجاح."}
