@@ -1,20 +1,17 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
-from fastapi.middleware.cors import CORSMiddleware  # المكتبة الجديدة لحل مشكلة CORS
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime
 import uvicorn
 
 app = FastAPI()
 
-# ========================================================
-# 🛡️ إعدادات السماح بالاتصال (CORS) لحل مشكلة المتصفح
-# ========================================================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # يسمح لأي موقع (مثل موقع BLS) بالاتصال بالسيرفر
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # يسمح بجميع أنواع الطلبات (GET, POST, الخ)
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
@@ -29,12 +26,15 @@ class BotInfo(BaseModel):
 
 @app.post("/ping")
 def ping(info: BotInfo):
+    # 1. التحقق من الحظر العام
     if not global_active:
-        return {"status": "stop", "message": "تم إيقاف البوت من قبل الإدارة للإصلاح أو لانتهاء الصلاحية."}
+        return {"status": "stop"}
     
+    # 2. التحقق من الحظر الفردي
     if info.hwid in computers_db and computers_db[info.hwid].get("is_active") == False:
-        return {"status": "stop", "message": "انتهى اشتراكك، يرجى التواصل مع الإدارة."}
+        return {"status": "stop"}
 
+    # 3. تسجيل الجهاز الجديد
     if info.hwid not in computers_db:
         computers_db[info.hwid] = {
             "pc_name": info.pc_name,
@@ -43,8 +43,17 @@ def ping(info: BotInfo):
             "first_seen": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
     
+    # تحديث وقت آخر ظهور للجهاز
     computers_db[info.hwid]["last_seen"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    return {"status": "success", "total_computers": len(computers_db)}
+    
+    # حساب عدد الأجهزة النشطة فعلياً (التي اتصلت في آخر 60 ثانية)
+    now = datetime.now()
+    active_count = sum(
+        1 for pc in computers_db.values() 
+        if (now - datetime.strptime(pc["last_seen"], "%Y-%m-%d %H:%M:%S")).total_seconds() <= 65
+    )
+    
+    return {"status": "success", "total_computers": active_count}
 
 def check_password(password: str):
     if password != ADMIN_PASSWORD:
@@ -53,10 +62,25 @@ def check_password(password: str):
 @app.get("/admin/stats")
 def get_stats(password: str = ""):
     check_password(password)
+    
+    now = datetime.now()
+    online_computers = {}
+    
+    # فلترة الأجهزة: نحتفظ فقط بالمتصلين الآن (آخر 60 ثانية) أو الموقوفين عمداً
+    for hwid, pc in list(computers_db.items()):
+        last_seen = datetime.strptime(pc["last_seen"], "%Y-%m-%d %H:%M:%S")
+        
+        # إذا مر أكثر من 60 ثانية ولم يتصل الجهاز، وكان غير محظور، نعتبره أغلق البوت ونحذفه من القائمة
+        if (now - last_seen).total_seconds() <= 60 or not pc["is_active"]:
+            online_computers[hwid] = pc
+        else:
+            # مسح الجهاز غير النشط من الذاكرة لتنظيف اللوحة
+            del computers_db[hwid]
+
     return {
-        "total_computers": len(computers_db),
+        "total_computers": len(online_computers),
         "global_status": global_active,
-        "computers": computers_db
+        "computers": online_computers
     }
 
 @app.get("/admin/stop_all")
@@ -151,7 +175,7 @@ def dashboard():
             <div id="dashboard-screen">
                 <div class="stats-grid">
                     <div class="stat-card">
-                        <h3>عدد الحواسيب المتصلة</h3>
+                        <h3>عدد الحواسيب المتصلة الآن</h3>
                         <div class="value" id="total-pcs">0</div>
                     </div>
                     <div class="stat-card">
@@ -165,7 +189,7 @@ def dashboard():
                     <button class="btn btn-red" onclick="controlGlobal('stop')">⏹️ إيقاف البوت عن الجميع</button>
                 </div>
 
-                <h3 style="margin-bottom: 15px; color: #eab308;">💻 قائمة الأجهزة المتصلة:</h3>
+                <h3 style="margin-bottom: 15px; color: #eab308;">💻 قائمة الأجهزة المتصلة فعلياً:</h3>
                 <div style="overflow-x: auto;">
                     <table>
                         <thead>
